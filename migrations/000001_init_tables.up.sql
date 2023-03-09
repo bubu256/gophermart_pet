@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS users(
 
 CREATE TABLE IF NOT EXISTS orders(
     order_id serial PRIMARY KEY,
-    number INT UNIQUE NOT NULL,
+    number TEXT UNIQUE NOT NULL,
     user_id INT NOT NULL,
     CONSTRAINT fk_order_users FOREIGN KEY(user_id) REFERENCES users(user_id)
 );
