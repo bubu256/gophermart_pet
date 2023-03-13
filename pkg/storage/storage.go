@@ -6,10 +6,10 @@ import (
 
 type Storage interface {
 	SetUser(user, password_hash string) error
-	GetPasswordHash(user string) (hash string, err error)
-	SetOrder(user string, number string) error
+	GetUserID(login string, hash string) (user_id uint16, err error)
+	SetOrder(user_id uint16, number string) error
 	SetOrderStatus(number string, status string) error
-	GetOrders(user string) ([]schema.Order, error)
-	GetBalance(user string) (schema.Balance, error)
-	SetBonusFlow(user string, amount float64) error
+	GetOrders(user_id uint16) ([]schema.Order, error)
+	GetBalance(user_id uint16) (schema.Balance, error)
+	SetBonusFlow(user_id uint16, order_number string, amount float64) error
 }
