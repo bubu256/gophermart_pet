@@ -23,6 +23,7 @@ type Configuration struct {
 }
 
 type CfgMediator struct {
+	SecretKey string `env:"KEY"`
 }
 
 type CfgDataBase struct {
@@ -53,5 +54,6 @@ func (c *Configuration) LoadFromEnv() {
 func (c *Configuration) LoadFromFlag() {
 	flag.StringVar(&(c.Server.RunAddress), "a", "localhost:8080", "Address to start the server (RUN_ADDRESS environment)")
 	flag.StringVar(&(c.DataBase.DataBaseURI), "d", "", "connecting string to DB (DATABASE_URI environment)")
+	flag.StringVar(&(c.Mediator.SecretKey), "k", "", "Secret key for token generating (KEY environment)")
 	flag.Parse()
 }

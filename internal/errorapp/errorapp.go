@@ -5,4 +5,5 @@ import "errors"
 // пакет содержит кастомные ошибки проекта
 
 var ErrDuplicate error = errors.New("recording is not possible due to duplication;")
-var ErrEmptyInsert error = errors.New("empty insertl;")
+var ErrEmptyInsert error = errors.New("empty insert;")
+var ErrWrongLoginPassword error = errors.New("Wrong login or password")

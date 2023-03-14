@@ -24,7 +24,7 @@ func main() {
 	db := postgres.New(cfg.DataBase, log)
 	mediator := mediator.New(db, cfg.Mediator, log)
 	handler := handlers.New(mediator, cfg.Server, log)
-	log.Info().Msgf("Сервер: %s", cfg.Server.RunAddress)
+	log.Info().Msgf("Сервер запущен: %s", cfg.Server.RunAddress)
 	err := http.ListenAndServe(cfg.Server.RunAddress, handler.Router)
 	if err != nil {
 		log.Fatal().Err(err)

@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -19,13 +20,13 @@ import (
 // все взаимодействия с БД
 
 // type Storage interface {
-// 	SetUser(user, password_hash string) error
-// 	GetUserID(login string, hash string) (user_id uint16, err error)
-// 	SetOrder(user_id uint16, number string) error
+// 	SetUser(user, passwordHash string) error
+// 	GetUserID(login string, hash string) (userID uint16, err error)
+// 	SetOrder(userID uint16, number string) error
 // 	SetOrderStatus(number string, status string) error
-// 	GetOrders(user_id uint16) ([]schema.Order, error)
-// 	GetBalance(user_id uint16) (schema.Balance, error)
-// 	SetBonusFlow(user_id uint16, amount float64) error
+// 	GetOrders(userID uint16) ([]schema.Order, error)
+// 	GetBalance(userID uint16) (schema.Balance, error)
+// 	SetBonusFlow(userID uint16, amount float64) error
 // }
 
 type PosgresDB struct {
@@ -54,11 +55,11 @@ func New(cfg config.CfgDataBase, logger zerolog.Logger) storage.Storage {
 	return pdb
 }
 
-func (p *PosgresDB) SetUser(user, password_hash string) error {
+func (p *PosgresDB) SetUser(user, passwordHash string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Millisecond)
 	defer cancel()
 	query := "INSERT INTO users(login, password_hash) VALUES ($1, $2)"
-	_, err := p.DB.ExecContext(ctx, query, user, password_hash)
+	_, err := p.DB.ExecContext(ctx, query, user, passwordHash)
 	if err != nil {
 		if strings.Contains(err.Error(), pgerrcode.UniqueViolation) {
 			return errorapp.ErrDuplicate
@@ -68,23 +69,26 @@ func (p *PosgresDB) SetUser(user, password_hash string) error {
 	return nil
 }
 
-func (p *PosgresDB) GetUserID(login string, hash string) (user_id uint16, err error) {
+func (p *PosgresDB) GetUserID(login string, hashPassword string) (userID uint16, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Millisecond)
 	defer cancel()
 	query := "select user_id from users where login = $1 and password_hash = $2"
 	var id uint16
-	err = p.DB.QueryRowContext(ctx, query, login).Scan(&id)
+	err = p.DB.QueryRowContext(ctx, query, login, hashPassword).Scan(&id)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, errorapp.ErrWrongLoginPassword
+		}
 		return 0, err
 	}
 	return id, nil
 }
 
-func (p *PosgresDB) SetOrder(user_id uint16, number string) error {
+func (p *PosgresDB) SetOrder(userID uint16, number string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Millisecond)
 	defer cancel()
 	query := "INSERT INTO orders(user_id, number) VALUES ($1, $2)"
-	_, err := p.DB.ExecContext(ctx, query, user_id, number)
+	_, err := p.DB.ExecContext(ctx, query, userID, number)
 	if err != nil {
 		if strings.Contains(err.Error(), pgerrcode.UniqueViolation) {
 			return errorapp.ErrDuplicate
@@ -116,7 +120,7 @@ func (p *PosgresDB) SetOrderStatus(number string, status string) error {
 	return nil
 }
 
-func (p *PosgresDB) GetOrders(user_id uint16) ([]schema.Order, error) {
+func (p *PosgresDB) GetOrders(userID uint16) ([]schema.Order, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Millisecond)
 	defer cancel()
 
@@ -129,7 +133,7 @@ func (p *PosgresDB) GetOrders(user_id uint16) ([]schema.Order, error) {
 		WHERE os.
 		ORDER BY o.order_id ASC
 		`
-	rows, err := p.DB.QueryContext(ctx, query, user_id)
+	rows, err := p.DB.QueryContext(ctx, query, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -151,7 +155,7 @@ func (p *PosgresDB) GetOrders(user_id uint16) ([]schema.Order, error) {
 	return result, nil
 }
 
-func (p *PosgresDB) GetBalance(user_id uint16) (schema.Balance, error) {
+func (p *PosgresDB) GetBalance(userID uint16) (schema.Balance, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Millisecond)
 	defer cancel()
 	query := `
@@ -164,15 +168,15 @@ func (p *PosgresDB) GetBalance(user_id uint16) (schema.Balance, error) {
 	WHERE bf.user_id = $1
 	`
 	balance := schema.Balance{}
-	err := p.DB.QueryRowContext(ctx, query, user_id).Scan(&balance.Current, &balance.Withdrawn)
+	err := p.DB.QueryRowContext(ctx, query, userID).Scan(&balance.Current, &balance.Withdrawn)
 	if err != nil {
 		return balance, err
 	}
 	return balance, nil
 }
 
-func (p *PosgresDB) SetBonusFlow(user_id uint16, order_number string, amount float64) error {
-	err := p.SetOrder(user_id, order_number)
+func (p *PosgresDB) SetBonusFlow(userID uint16, orderNumber string, amount float64) error {
+	err := p.SetOrder(userID, orderNumber)
 	if err != nil {
 		return fmt.Errorf("ошибка при попытке списания бонусов; %w", err)
 	}
@@ -185,7 +189,7 @@ func (p *PosgresDB) SetBonusFlow(user_id uint16, order_number string, amount flo
 		from orders o
 		where o.user_id = $1 and o.number = $2;
 		`
-	insertResult, err := p.DB.ExecContext(ctx, query, user_id, order_number, amount)
+	insertResult, err := p.DB.ExecContext(ctx, query, userID, orderNumber, amount)
 	if err != nil {
 		return err
 	}
