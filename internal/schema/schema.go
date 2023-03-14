@@ -39,3 +39,8 @@ type AnswerAccrualStatus struct {
 	Status  string `json:"status"` // REGISTERED, INVALID, PROCESSING, PROCESSED
 	Accrual int    `json:"accrual"`
 }
+
+type LoginPassword struct {
+	Login    string `json:"login"`
+	Password string `json:"password"`
+}

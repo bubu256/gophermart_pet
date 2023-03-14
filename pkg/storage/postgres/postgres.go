@@ -40,11 +40,18 @@ func New(cfg config.CfgDataBase, logger zerolog.Logger) storage.Storage {
 	if err != nil {
 		logger.Error().Err(err)
 	}
-	return &PosgresDB{
+
+	pdb := &PosgresDB{
 		DB:     db,
 		URI:    cfg.DataBaseURI,
 		logger: logger,
 	}
+
+	err = pdb.Ping()
+	if err != nil {
+		logger.Fatal().Err(err).Msg("DB not available; error is here 58545346")
+	}
+	return pdb
 }
 
 func (p *PosgresDB) SetUser(user, password_hash string) error {
@@ -190,4 +197,15 @@ func (p *PosgresDB) SetBonusFlow(user_id uint16, order_number string, amount flo
 		return errorapp.ErrEmptyInsert
 	}
 	return nil
+}
+
+func (p *PosgresDB) Ping() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Millisecond)
+	defer cancel()
+	db, err := sql.Open("pgx", p.URI)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	return db.PingContext(ctx)
 }

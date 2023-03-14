@@ -30,7 +30,7 @@ type CfgDataBase struct {
 }
 
 type CfgServer struct {
-	RunAdress string `env:"RUN_ADDRESS"`
+	RunAddress string `env:"RUN_ADDRESS"`
 }
 
 // Заполняет конфиг из переменных окружения
@@ -51,7 +51,7 @@ func (c *Configuration) LoadFromEnv() {
 
 // функция парсит флаги запуска
 func (c *Configuration) LoadFromFlag() {
-	flag.StringVar(&(c.Server.RunAdress), "a", "localhost:8080", "Address to start the server (RUN_ADDRESS environment)")
+	flag.StringVar(&(c.Server.RunAddress), "a", "localhost:8080", "Address to start the server (RUN_ADDRESS environment)")
 	flag.StringVar(&(c.DataBase.DataBaseURI), "d", "", "connecting string to DB (DATABASE_URI environment)")
 	flag.Parse()
 }

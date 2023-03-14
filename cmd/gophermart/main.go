@@ -1,12 +1,19 @@
 package main
 
 import (
+	"fmt"
+	"net/http"
+
 	"github.com/bubu256/gophermart_pet/config"
+	"github.com/bubu256/gophermart_pet/internal/handlers"
+	"github.com/bubu256/gophermart_pet/internal/mediator"
 	"github.com/bubu256/gophermart_pet/pkg/logger"
 	"github.com/bubu256/gophermart_pet/pkg/storage/postgres"
+	"github.com/rs/zerolog"
 )
 
 func main() {
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	log := logger.New()
 	log.Info().Msg("Start application")
 
@@ -15,8 +22,12 @@ func main() {
 	cfg.LoadFromEnv()  // загрузка параметров из переменных окружения
 
 	db := postgres.New(cfg.DataBase, log)
-	// service := shortener.New(dataStorage, cfg.Service)
-	// handler := handlers.New(service, cfg.Server)
-	// log.Println("Сервер:", cfg.Server.ServerAddress)
-	// log.Fatal(http.ListenAndServe(cfg.Server.ServerAddress, handler.Router))
+	mediator := mediator.New(db, cfg.Mediator, log)
+	handler := handlers.New(mediator, cfg.Server, log)
+	log.Info().Msgf("Сервер: %s", cfg.Server.RunAddress)
+	err := http.ListenAndServe(cfg.Server.RunAddress, handler.Router)
+	if err != nil {
+		log.Fatal().Err(err)
+	}
+	fmt.Print("Exit")
 }
