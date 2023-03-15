@@ -8,7 +8,7 @@ type Storage interface {
 	SetUser(user, passwordHash string) error
 	GetUserID(login string, hash string) (userID uint16, err error)
 	SetOrder(userID uint16, number string) error
-	SetOrderStatus(number string, status string) error
+	SetOrderStatus(number string, status string, accrual float32) error
 	GetOrders(userID uint16) ([]schema.Order, error)
 	GetBalance(userID uint16) (schema.Balance, error)
 	SetBonusFlow(userID uint16, orderNumber string, amount float64) error

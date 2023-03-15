@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 
@@ -84,6 +83,7 @@ func (p *PosgresDB) GetUserID(login string, hashPassword string) (userID uint16,
 	return id, nil
 }
 
+// добавляет новый заказ для пользователя
 func (p *PosgresDB) SetOrder(userID uint16, number string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Millisecond)
 	defer cancel()
@@ -95,22 +95,19 @@ func (p *PosgresDB) SetOrder(userID uint16, number string) error {
 		}
 		return err
 	}
-	// err = p.SetOrderStatus(number, "NEW")
-	// if err != nil {
-	// 	return err
-	// }
 	return nil
 }
 
-func (p *PosgresDB) SetOrderStatus(number string, status string) error {
+// устанавливает статус расчета заказа
+func (p *PosgresDB) SetOrderStatus(number string, status string, accrual float32) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Millisecond)
 	defer cancel()
 	query := `
-		INSERT INTO order_status(order_id, status_id)
-		select o.order_id, s.status_id
+		INSERT INTO order_status(order_id, status_id, accrual)
+		select o.order_id, s.status_id, $3
 		from orders o, status s where s.name = $1 and o.number = $2
 		`
-	_, err := p.DB.ExecContext(ctx, query, status, number)
+	_, err := p.DB.ExecContext(ctx, query, status, number, accrual)
 	if err != nil {
 		if strings.Contains(err.Error(), pgerrcode.UniqueViolation) {
 			return errorapp.ErrDuplicate
@@ -120,18 +117,25 @@ func (p *PosgresDB) SetOrderStatus(number string, status string) error {
 	return nil
 }
 
+// возвращает все заказы в структуре []schema.Order.
+// номер, статус, начисление, датавремя добавления
 func (p *PosgresDB) GetOrders(userID uint16) ([]schema.Order, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Millisecond)
 	defer cancel()
 
 	query := `
-		SELECT o.number, status.name, bf.amount, os.datetime
-		FROM orders o LEFT JOIN bonus_flow as bf ON bf.order_id = o.order_id and o.user_id = $1
-			JOIN (SELECT order_id, max(status_id) from order_status group by order_id) 
-				as os ON o.order_id = os.order_id
-			JOIN status s ON s.status_id = os.status_id 
-		WHERE os.
-		ORDER BY o.order_id ASC
+		select num, stat, acc, upload
+		FROM (
+			SELECT distinct on (os.order_id) os.order_id, 
+				o.number num, 
+				s.name stat, 
+				os.accrual acc, 
+				o.datetime upload
+			FROM orders o JOIN order_status os ON o.order_id = os.order_id and o.user_id == $1
+				JOIN status s ON s.status_id = os.status_id
+			ORDER BY os.datetime DESC
+		) q1
+		ORDER BY upload ASC
 		`
 	rows, err := p.DB.QueryContext(ctx, query, userID)
 	if err != nil {
@@ -155,6 +159,7 @@ func (p *PosgresDB) GetOrders(userID uint16) ([]schema.Order, error) {
 	return result, nil
 }
 
+// возвращает баланс и общую сумму потраченных баллов
 func (p *PosgresDB) GetBalance(userID uint16) (schema.Balance, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Millisecond)
 	defer cancel()
@@ -175,19 +180,13 @@ func (p *PosgresDB) GetBalance(userID uint16) (schema.Balance, error) {
 	return balance, nil
 }
 
+// движение бонусов
 func (p *PosgresDB) SetBonusFlow(userID uint16, orderNumber string, amount float64) error {
-	err := p.SetOrder(userID, orderNumber)
-	if err != nil {
-		return fmt.Errorf("ошибка при попытке списания бонусов; %w", err)
-	}
-
 	ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Millisecond)
 	defer cancel()
 	query := `
-		INSERT INTO bonus_flow(user_id, order_id, amount)
-		select $1, o.order_id, $3
-		from orders o
-		where o.user_id = $1 and o.number = $2;
+		INSERT INTO bonus_flow(user_id, order_number, amount)
+		VALUES ($1, $2, $3)
 		`
 	insertResult, err := p.DB.ExecContext(ctx, query, userID, orderNumber, amount)
 	if err != nil {
@@ -203,6 +202,7 @@ func (p *PosgresDB) SetBonusFlow(userID uint16, orderNumber string, amount float
 	return nil
 }
 
+// проверка доступности БД
 func (p *PosgresDB) Ping() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Millisecond)
 	defer cancel()

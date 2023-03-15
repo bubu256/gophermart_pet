@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
-	"errors"
 
 	"github.com/bubu256/gophermart_pet/config"
 	"github.com/bubu256/gophermart_pet/internal/schema"
@@ -83,21 +82,28 @@ func (m *Mediator) generateNewToken(userID uint16) (token string, err error) {
 	return hex.EncodeToString(dst), nil
 }
 
-// проверяет подлинность токена и возвращает userID
-func (m *Mediator) GetUserIDfromToken(token string) (userID uint16, err error) {
+// Возвращает userID по токену.
+// Внимание! Проверки подлинности токена тут нет.
+func (m *Mediator) getUserIDfromToken(token string) (userID uint16, err error) {
 	decodeToken, err := hex.DecodeString(token)
 	if err != nil {
 		return 0, err
+	}
+	bytesUserID := decodeToken[:16]
+	userID = binary.LittleEndian.Uint16(bytesUserID)
+	return userID, nil
+}
+
+// проверяет подлинность токена
+func (m *Mediator) CheckToken(token string) bool {
+	decodeToken, err := hex.DecodeString(token)
+	if err != nil {
+		return false
 	}
 	bytesUserID := decodeToken[:16]
 	sing := decodeToken[4:]
 	h := hmac.New(sha256.New, m.key)
 	h.Write(bytesUserID)
 	dst := h.Sum(nil)
-	// проверка подписи
-	if !hmac.Equal(sing, dst) {
-		return 0, errors.New("token not validated")
-	}
-	userID = binary.LittleEndian.Uint16(bytesUserID)
-	return userID, nil
+	return hmac.Equal(sing, dst)
 }

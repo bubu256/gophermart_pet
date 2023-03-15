@@ -29,14 +29,41 @@ func New(mediator *mediator.Mediator, cfg config.CfgServer, logger zerolog.Logge
 }
 
 func (h *Handler) MountBaseRouter() {
-	r := chi.NewRouter()
-	// подключение ручек
-	r.Post("/api/user/register", h.UserRegister)
-	r.Post("/api/user/login", h.UserLogin)
+	publicRouter := chi.NewRouter()
+	publicRouter.Post("/api/user/register", h.UserRegister)
+	publicRouter.Post("/api/user/login", h.UserLogin)
 
-	h.Router.Mount("/", r)
+	privateRouter := chi.NewRouter()
+	privateRouter.Use(h.MiddlewareTokenChecker)
+
+	h.Router.Mount("/", publicRouter)
+	h.Router.Mount("/", privateRouter)
 }
 
+// ============Middlewares===============//
+
+// Проверяет токен и возвращая 401 если пользователь не авторизован
+func (h *Handler) MiddlewareTokenChecker(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		cookie, err := r.Cookie("token")
+		if err != nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		if !h.Mediator.CheckToken(cookie.Value) {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		// h.logger.Debug().Msgf("Token %s", cookie.Value)
+		next.ServeHTTP(w, r)
+	})
+}
+
+//============Middlewares===============//
+//......................................//
+//============Handlers==================//
+
+// регистрации пользователя
 func (h *Handler) UserRegister(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("Content-Type") != "application/json" {
 		w.WriteHeader(http.StatusBadRequest)
@@ -79,6 +106,7 @@ func (h *Handler) UserRegister(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+// авторизация пользователя
 func (h *Handler) UserLogin(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("Content-Type") != "application/json" {
 		w.WriteHeader(http.StatusBadRequest)
@@ -112,3 +140,6 @@ func (h *Handler) UserLogin(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &cookie)
 	w.WriteHeader(http.StatusOK)
 }
+
+//============Handlers==================//
+//......................................//
