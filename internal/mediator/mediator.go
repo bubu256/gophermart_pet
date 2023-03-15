@@ -5,8 +5,10 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 
 	"github.com/bubu256/gophermart_pet/config"
+	"github.com/bubu256/gophermart_pet/internal/errorapp"
 	"github.com/bubu256/gophermart_pet/internal/schema"
 	"github.com/bubu256/gophermart_pet/pkg/helpfunc"
 	"github.com/bubu256/gophermart_pet/pkg/storage"
@@ -39,14 +41,14 @@ func New(db storage.Storage, cfg config.CfgMediator, logger zerolog.Logger) *Med
 
 // принимает структуру логин_пароль, хеширует пароль и пишет базу
 func (m *Mediator) SetNewUser(loginPassword schema.LoginPassword) error {
-	hash := m.getStringHash256(loginPassword.Password)
+	hash := getStringHash256(loginPassword.Password)
 	err := m.DB.SetUser(loginPassword.Login, hash)
 	return err
 }
 
 // принимает LoginPassword структуру, проверяет логин пароль и возвращает токен
 func (m *Mediator) GetTokenAuthorization(loginPassword schema.LoginPassword) (string, error) {
-	hashString := m.getStringHash256(loginPassword.Password)
+	hashString := getStringHash256(loginPassword.Password)
 	userID, err := m.DB.GetUserID(loginPassword.Login, hashString)
 	if err != nil {
 		m.logger.Debug().Err(err).Msg("error from m.DB.GetUserID(loginPassword.Login, hashString)")
@@ -61,9 +63,36 @@ func (m *Mediator) GetTokenAuthorization(loginPassword schema.LoginPassword) (st
 	return token, nil
 }
 
-func (m *Mediator) getStringHash256(str string) string {
-	byteHash := sha256.Sum256([]byte(str))
-	return hex.EncodeToString(byteHash[:])
+// принимает токен и номер заказа для добавления
+// добавляет заказ в БД для пользователя и устанавливает статус NEW
+func (m *Mediator) SetNewOrder(token string, numberOrder string) error {
+	userID, err := m.getUserIDfromToken(token)
+	if err != nil {
+		return err
+	}
+	err = m.DB.SetOrder(userID, numberOrder)
+	if err != nil {
+		// если запись не добавлена по причине дупликации проверяем кому принадлежит заказ
+		if errors.Is(err, errorapp.ErrDuplicate) {
+			userOrder, err := m.DB.GetUserIDfromOrders(numberOrder)
+			if err != nil {
+				return err
+			}
+			if userID == userOrder {
+				return errorapp.ErrAlreadyAdded
+			} else {
+				return errorapp.ErrDuplicate
+			}
+		}
+	}
+
+	err = m.DB.SetOrderStatus(numberOrder, "NEW", 0)
+	if err != nil {
+		m.logger.Error().Err(err).Msg("ошибка при добавлении заказа со статусом NEW; err is here 64654654;")
+		return err
+	}
+
+	return nil
 }
 
 // генерирует новый токен для userID
@@ -72,7 +101,8 @@ func (m *Mediator) generateNewToken(userID uint16) (token string, err error) {
 	h := hmac.New(sha256.New, m.key)
 	// кодируем userID в слайс байт и создаем подпись
 	bytesUserID := make([]byte, 16)
-	_, err = h.Write(binary.LittleEndian.AppendUint16(bytesUserID, userID))
+	binary.LittleEndian.PutUint16(bytesUserID, userID)
+	_, err = h.Write(bytesUserID)
 	if err != nil {
 		return "", err
 	}
@@ -101,9 +131,35 @@ func (m *Mediator) CheckToken(token string) bool {
 		return false
 	}
 	bytesUserID := decodeToken[:16]
-	sing := decodeToken[4:]
+	sing := decodeToken[16:]
 	h := hmac.New(sha256.New, m.key)
 	h.Write(bytesUserID)
 	dst := h.Sum(nil)
 	return hmac.Equal(sing, dst)
+}
+
+// валидирует номер заказа
+// в том числе проводит проверку алгоритмом Луна
+func ValidateOrderNumber(orderNumber string) bool {
+	var luhn int
+	for i, sym := range orderNumber {
+		num := int(sym - '0')
+		if num < 0 || num > 9 {
+			return false
+		}
+		if i%2 == 0 {
+			num = num * 2
+			if num > 9 {
+				num = num/10 + num%10
+			}
+		}
+		luhn += num
+	}
+	return luhn%10 == 0
+}
+
+// возвращает хеш в виде hex строки
+func getStringHash256(str string) string {
+	byteHash := sha256.Sum256([]byte(str))
+	return hex.EncodeToString(byteHash[:])
 }

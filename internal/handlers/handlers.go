@@ -29,15 +29,15 @@ func New(mediator *mediator.Mediator, cfg config.CfgServer, logger zerolog.Logge
 }
 
 func (h *Handler) MountBaseRouter() {
-	publicRouter := chi.NewRouter()
-	publicRouter.Post("/api/user/register", h.UserRegister)
-	publicRouter.Post("/api/user/login", h.UserLogin)
-
+	// хендлеры с проверкой токена в мидлваре
 	privateRouter := chi.NewRouter()
 	privateRouter.Use(h.MiddlewareTokenChecker)
-
-	h.Router.Mount("/", publicRouter)
+	privateRouter.Post("/api/user/orders", h.UserOrders)
 	h.Router.Mount("/", privateRouter)
+
+	// хендлеры без мидлвара на проверку токена
+	h.Router.Post("/api/user/register", h.UserRegister)
+	h.Router.Post("/api/user/login", h.UserLogin)
 }
 
 // ============Middlewares===============//
@@ -45,16 +45,16 @@ func (h *Handler) MountBaseRouter() {
 // Проверяет токен и возвращая 401 если пользователь не авторизован
 func (h *Handler) MiddlewareTokenChecker(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		cookie, err := r.Cookie("token")
+		cookieToken, err := r.Cookie("token")
+		// h.logger.Debug().Msgf("Token %s", cookieToken.Value)
 		if err != nil {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		if !h.Mediator.CheckToken(cookie.Value) {
+		if !h.Mediator.CheckToken(cookieToken.Value) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		// h.logger.Debug().Msgf("Token %s", cookie.Value)
 		next.ServeHTTP(w, r)
 	})
 }
@@ -101,8 +101,8 @@ func (h *Handler) UserRegister(w http.ResponseWriter, r *http.Request) {
 		h.logger.Error().Err(err).Msg("ошибка аутентификации после регистрации пользователя; error is here 3468453;")
 		return
 	}
-	cookie := http.Cookie{Name: "token", Value: token, Path: "/"}
-	http.SetCookie(w, &cookie)
+	cookieToken := http.Cookie{Name: "token", Value: token, Path: "/"}
+	http.SetCookie(w, &cookieToken)
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -136,9 +136,61 @@ func (h *Handler) UserLogin(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	cookie := http.Cookie{Name: "token", Value: token, Path: "/"}
-	http.SetCookie(w, &cookie)
+	cookieToken := http.Cookie{Name: "token", Value: token, Path: "/"}
+	http.SetCookie(w, &cookieToken)
 	w.WriteHeader(http.StatusOK)
+}
+
+// загрузка нового заказа пользователем
+func (h *Handler) UserOrders(w http.ResponseWriter, r *http.Request) {
+	// 200 — номер заказа уже был загружен этим пользователем;     +
+	// 202 — новый номер заказа принят в обработку;     		   +
+	// 400 — неверный формат запроса;                              +
+	// 401 — пользователь не аутентифицирован;                     +
+	// 409 — номер заказа уже был загружен другим пользователем;   +
+	// 422 — неверный формат номера заказа;
+	// 500 — внутренняя ошибка сервера.                            +
+
+	if r.Header.Get("Content-Type") != "text/plain" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	cookieToken, err := r.Cookie("token")
+	if err != nil {
+		h.logger.Error().Err(err).Msg("ошибка при чтении токена из кук; error is here 168131685")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("ошибка при чтении тела запроса; err is here 32135354;")
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	numberOrder := string(body)
+	// проверка номера
+	if !mediator.ValidateOrderNumber(numberOrder) {
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		return
+	}
+	// добавляем заказ
+	err = h.Mediator.SetNewOrder(cookieToken.Value, numberOrder)
+	switch {
+	case errors.Is(err, errorapp.ErrDuplicate):
+		// номер уже добавлен другим пользователем
+		w.WriteHeader(http.StatusConflict)
+		return
+	case errors.Is(err, errorapp.ErrAlreadyAdded):
+		// пользователь уже добавлял этот заказ
+		w.WriteHeader(http.StatusOK)
+		return
+	case err != nil:
+		h.logger.Error().Err(err).Msg("ошибка при добавлении нового заказ; err is here 65456121354")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusAccepted)
+
 }
 
 //============Handlers==================//

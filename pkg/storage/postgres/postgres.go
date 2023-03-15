@@ -202,6 +202,24 @@ func (p *PosgresDB) SetBonusFlow(userID uint16, orderNumber string, amount float
 	return nil
 }
 
+// возвращает айди юзера добавившего заказ
+func (p *PosgresDB) GetUserIDfromOrders(numberOrder string) (uint16, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Millisecond)
+	defer cancel()
+	query := `
+	SELECT user_id FROM orders WHERE number = $1 LIMIT 1
+	`
+	var userID uint16
+	err := p.DB.QueryRowContext(ctx, query, numberOrder).Scan(&userID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, errorapp.ErrEmptyResult
+		}
+		return 0, err
+	}
+	return userID, nil
+}
+
 // проверка доступности БД
 func (p *PosgresDB) Ping() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Millisecond)
