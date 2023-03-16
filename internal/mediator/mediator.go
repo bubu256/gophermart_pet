@@ -18,7 +18,7 @@ import (
 // реализация бизнес логики приложения, условно посредник между БД и хендлерами
 
 type Mediator struct {
-	DB     storage.Storage
+	db     storage.Storage
 	logger zerolog.Logger
 	key    []byte
 }
@@ -36,20 +36,20 @@ func New(db storage.Storage, cfg config.CfgMediator, logger zerolog.Logger) *Med
 		}
 		logger.Warn().Msgf("Сгенерирован новый секретный ключ %x", key)
 	}
-	return &Mediator{DB: db, logger: logger, key: key}
+	return &Mediator{db: db, logger: logger, key: key}
 }
 
 // принимает структуру логин_пароль, хеширует пароль и пишет базу
 func (m *Mediator) SetNewUser(loginPassword schema.LoginPassword) error {
 	hash := getStringHash256(loginPassword.Password)
-	err := m.DB.SetUser(loginPassword.Login, hash)
+	err := m.db.SetUser(loginPassword.Login, hash)
 	return err
 }
 
 // принимает LoginPassword структуру, проверяет логин пароль и возвращает токен
 func (m *Mediator) GetTokenAuthorization(loginPassword schema.LoginPassword) (string, error) {
 	hashString := getStringHash256(loginPassword.Password)
-	userID, err := m.DB.GetUserID(loginPassword.Login, hashString)
+	userID, err := m.db.GetUserID(loginPassword.Login, hashString)
 	if err != nil {
 		m.logger.Debug().Err(err).Msg("error from m.DB.GetUserID(loginPassword.Login, hashString)")
 		return "", err
@@ -70,11 +70,11 @@ func (m *Mediator) SetNewOrder(token string, numberOrder string) error {
 	if err != nil {
 		return err
 	}
-	err = m.DB.SetOrder(userID, numberOrder)
+	err = m.db.SetOrder(userID, numberOrder)
 	if err != nil {
 		// если запись не добавлена по причине дупликации проверяем кому принадлежит заказ
 		if errors.Is(err, errorapp.ErrDuplicate) {
-			userOrder, err := m.DB.GetUserIDfromOrders(numberOrder)
+			userOrder, err := m.db.GetUserIDfromOrders(numberOrder)
 			if err != nil {
 				return err
 			}
@@ -86,13 +86,22 @@ func (m *Mediator) SetNewOrder(token string, numberOrder string) error {
 		}
 	}
 
-	err = m.DB.SetOrderStatus(numberOrder, schema.StatusOrderNew, 0)
+	err = m.db.SetOrderStatus(numberOrder, schema.StatusOrderNew, 0)
 	if err != nil {
 		m.logger.Error().Err(err).Msg("ошибка при добавлении заказа со статусом NEW; err is here 64654654;")
 		return err
 	}
 
 	return nil
+}
+
+// Возвращает инфо по загруженным заказам пользователя
+func (m *Mediator) GetUserOrders(token string) ([]schema.Order, error) {
+	userID, err := m.getUserIDfromToken(token)
+	if err != nil {
+		return nil, err
+	}
+	return m.db.GetOrders(userID)
 }
 
 // генерирует новый токен для userID

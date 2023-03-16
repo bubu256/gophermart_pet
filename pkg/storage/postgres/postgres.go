@@ -113,33 +113,47 @@ func (p *PosgresDB) GetOrders(userID uint16) ([]schema.Order, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Millisecond)
 	defer cancel()
 
+	// query := `
+	// 	select num, stat, acc, upload
+	// 	FROM (
+	// 		SELECT distinct on (os.order_id) os.order_id,
+	// 			o.number num,
+	// 			s.name stat,
+	// 			os.accrual acc,
+	// 			o.datetime upload
+	// 		FROM orders o JOIN order_status os ON o.order_id = os.order_id and o.user_id == $1
+	// 			JOIN status s ON s.status_id = os.status_id
+	// 		ORDER BY os.datetime DESC
+	// 	) q1
+	// 	ORDER BY upload ASC
+	// 	`
 	query := `
-		select num, stat, acc, upload
-		FROM (
-			SELECT distinct on (os.order_id) os.order_id, 
-				o.number num, 
-				s.name stat, 
-				os.accrual acc, 
-				o.datetime upload
-			FROM orders o JOIN order_status os ON o.order_id = os.order_id and o.user_id == $1
-				JOIN status s ON s.status_id = os.status_id
-			ORDER BY os.datetime DESC
-		) q1
-		ORDER BY upload ASC
-		`
+	SELECT distinct on (os.order_id) 
+		o.number num, 
+		s.name stat, 
+		os.accrual acc, 
+		o.datetime upload
+	FROM orders o JOIN order_status os ON o.order_id = os.order_id and o.user_id = $1
+		JOIN status s ON s.status_id = os.status_id
+	ORDER BY os.order_id, os.datetime desc
+	`
 	rows, err := p.DB.QueryContext(ctx, query, userID)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, errorapp.ErrEmptyResult
+		}
 		return nil, err
 	}
 
 	result := make([]schema.Order, 0)
 	for rows.Next() {
 		order := schema.Order{}
-		err := rows.Scan(&order.Number, &order.Status, &order.Accrual, &order.UploadedAt)
+		err := rows.Scan(&order.Number, &order.Status, &order.Accrual, &order.UploadedAt.Time)
 		if err != nil {
-			p.logger.Error().Err(err)
+			p.logger.Error().Err(err).Msg("err is here 16541321;")
 			continue
 		}
+		// p.logger.Debug().Msgf("%v", order)
 		result = append(result, order)
 	}
 	if err := rows.Err(); err != nil {

@@ -32,7 +32,8 @@ func (h *Handler) MountBaseRouter() {
 	// хендлеры с проверкой токена в мидлваре
 	privateRouter := chi.NewRouter()
 	privateRouter.Use(h.MiddlewareTokenChecker)
-	privateRouter.Post("/api/user/orders", h.UserOrders)
+	privateRouter.Post("/api/user/orders", h.PostUserOrders)
+	privateRouter.Get("/api/user/orders", h.GetUserOrders)
 	h.Router.Mount("/", privateRouter)
 
 	// хендлеры без мидлвара на проверку токена
@@ -141,16 +142,9 @@ func (h *Handler) UserLogin(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// загрузка нового заказа пользователем
-func (h *Handler) UserOrders(w http.ResponseWriter, r *http.Request) {
-	// 200 — номер заказа уже был загружен этим пользователем;     +
-	// 202 — новый номер заказа принят в обработку;     		   +
-	// 400 — неверный формат запроса;                              +
-	// 401 — пользователь не аутентифицирован;                     +
-	// 409 — номер заказа уже был загружен другим пользователем;   +
-	// 422 — неверный формат номера заказа;
-	// 500 — внутренняя ошибка сервера.                            +
-
+// Загрузка номера заказа
+// Хендлер: POST /api/user/orders.
+func (h *Handler) PostUserOrders(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("Content-Type") != "text/plain" {
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -191,6 +185,50 @@ func (h *Handler) UserOrders(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusAccepted)
 
+}
+
+// Получение списка загруженных номеров заказов
+// Хендлер: GET /api/user/orders.
+func (h *Handler) GetUserOrders(w http.ResponseWriter, r *http.Request) {
+	// 	200 — успешная обработка запроса.						+
+	//   Формат ответа:
+	//   200 OK HTTP/1.1
+	//   Content-Type: application/json
+	//   ...
+
+	//   [
+	//       {
+	//           "number": "9278923470",
+	//           "status": "PROCESSED",
+	//           "accrual": 500,
+	//           "uploaded_at": "2020-12-10T15:15:45+03:00"
+	//       },
+
+	cookieToken, err := r.Cookie("token")
+	if err != nil {
+		h.logger.Error().Err(err).Msg("ошибка при чтении токена из кук; error is here 16813145685")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	orders, err := h.Mediator.GetUserOrders(cookieToken.Value)
+	if err != nil {
+		if errors.Is(err, errorapp.ErrEmptyResult) {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		h.logger.Error().Err(err).Msg("ошибка при попытке получить список заказов; err is here 643154;")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	ordersByte, err := json.Marshal(orders)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("ошибка кодирования списка заказов в json; err is here 64331154;")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(ordersByte)
 }
 
 //============Handlers==================//

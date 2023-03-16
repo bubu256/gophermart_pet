@@ -1,9 +1,14 @@
 package schema
 
-import "time"
+import (
+	"fmt"
+	"strings"
+	"time"
+)
 
 // пакет содержит структуры данных используемые разными пакетами
 
+// возможный статусы заказа
 type StatusOrder string
 
 const (
@@ -13,12 +18,33 @@ const (
 	StatusOrderProcessed  StatusOrder = "PROCESSED"
 )
 
+// тип для представления кодирования времени в json в формат RFC3339
+type TimeRFC3339 struct {
+	time.Time
+}
+
+func (t *TimeRFC3339) UnmarshalJSON(b []byte) (err error) {
+	s := strings.Trim(string(b), `"`) // remove quotes
+	if s == "null" {
+		return
+	}
+	t.Time, err = time.Parse(time.RFC3339, s)
+	return
+}
+
+func (t TimeRFC3339) MarshalJSON() ([]byte, error) {
+	if t.Time.IsZero() {
+		return nil, nil
+	}
+	return []byte(fmt.Sprintf(`"%s"`, t.Time.Format(time.RFC3339))), nil
+}
+
 // структура для ответа от БД, а так для записи ответа сервера в виде json
 type Order struct {
-	Number     string    `json:"number"`
-	Status     string    `json:"status"`
-	Accrual    float32   `json:"accrual,omitempty"` // заполняется только для статуса PROCESSED
-	UploadedAt time.Time `json:"uploaded_at"`
+	Number     string      `json:"number"`
+	Status     string      `json:"status"`
+	Accrual    float32     `json:"accrual,omitempty"` // заполняется только для статуса PROCESSED
+	UploadedAt TimeRFC3339 `json:"uploaded_at"`
 }
 
 // структура для ответа БД о кол-ве бонусов, а так для записи ответа сервера в виде json
