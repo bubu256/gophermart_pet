@@ -23,8 +23,8 @@ VALUES ('NEW'), ('PROCESSING'), ('INVALID'), ('PROCESSED');
 
 CREATE TABLE IF NOT EXISTS order_status(
     order_status_id serial PRIMARY KEY,
-    status_id INT UNIQUE NOT NULL,
-    order_id INT UNIQUE NOT NULL,
+    status_id INT NOT NULL,
+    order_id INT NOT NULL,
     datetime TIMESTAMP NOT NULL DEFAULT NOW(),
     accrual REAL,
     UNIQUE (order_id, status_id),

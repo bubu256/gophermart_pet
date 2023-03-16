@@ -86,7 +86,7 @@ func (m *Mediator) SetNewOrder(token string, numberOrder string) error {
 		}
 	}
 
-	err = m.DB.SetOrderStatus(numberOrder, "NEW", 0)
+	err = m.DB.SetOrderStatus(numberOrder, schema.StatusOrderNew, 0)
 	if err != nil {
 		m.logger.Error().Err(err).Msg("ошибка при добавлении заказа со статусом NEW; err is here 64654654;")
 		return err

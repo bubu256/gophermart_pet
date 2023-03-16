@@ -4,14 +4,14 @@ import "time"
 
 // пакет содержит структуры данных используемые разными пакетами
 
-// type StatusOrder int
+type StatusOrder string
 
-// const (
-// 	StatusOrderNew StatusOrder = iota
-// 	StatusOrderProcessing
-// 	StatusOrderInvalid
-// 	StatusOrderProcessed
-// )
+const (
+	StatusOrderNew        StatusOrder = "NEW"
+	StatusOrderProcessing             = "PROCESSING"
+	StatusOrderInvalid                = "INVALID"
+	StatusOrderProcessed              = "PROCESSED"
+)
 
 // структура для ответа от БД, а так для записи ответа сервера в виде json
 type Order struct {
