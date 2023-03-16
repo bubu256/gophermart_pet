@@ -142,12 +142,13 @@ func (m *Mediator) CheckToken(token string) bool {
 // в том числе проводит проверку алгоритмом Луна
 func ValidateOrderNumber(orderNumber string) bool {
 	var luhn int
+	even := len(orderNumber) % 2
 	for i, sym := range orderNumber {
 		num := int(sym - '0')
 		if num < 0 || num > 9 {
 			return false
 		}
-		if i%2 == 0 {
+		if i%2 == even {
 			num = num * 2
 			if num > 9 {
 				num = num/10 + num%10

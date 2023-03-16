@@ -8,9 +8,9 @@ type StatusOrder string
 
 const (
 	StatusOrderNew        StatusOrder = "NEW"
-	StatusOrderProcessing             = "PROCESSING"
-	StatusOrderInvalid                = "INVALID"
-	StatusOrderProcessed              = "PROCESSED"
+	StatusOrderProcessing StatusOrder = "PROCESSING"
+	StatusOrderInvalid    StatusOrder = "INVALID"
+	StatusOrderProcessed  StatusOrder = "PROCESSED"
 )
 
 // структура для ответа от БД, а так для записи ответа сервера в виде json
