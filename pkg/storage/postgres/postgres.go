@@ -112,21 +112,6 @@ func (p *PosgresDB) SetOrderStatus(number string, status schema.StatusOrder, acc
 func (p *PosgresDB) GetOrders(userID uint16) ([]schema.Order, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Millisecond)
 	defer cancel()
-
-	// query := `
-	// 	select num, stat, acc, upload
-	// 	FROM (
-	// 		SELECT distinct on (os.order_id) os.order_id,
-	// 			o.number num,
-	// 			s.name stat,
-	// 			os.accrual acc,
-	// 			o.datetime upload
-	// 		FROM orders o JOIN order_status os ON o.order_id = os.order_id and o.user_id == $1
-	// 			JOIN status s ON s.status_id = os.status_id
-	// 		ORDER BY os.datetime DESC
-	// 	) q1
-	// 	ORDER BY upload ASC
-	// 	`
 	query := `
 	SELECT distinct on (os.order_id) 
 		o.number num, 
@@ -138,10 +123,12 @@ func (p *PosgresDB) GetOrders(userID uint16) ([]schema.Order, error) {
 	ORDER BY os.order_id, os.datetime desc
 	`
 	rows, err := p.DB.QueryContext(ctx, query, userID)
+	// p.logger.Debug().Err(err).Msg("")
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, errorapp.ErrEmptyResult
-		}
+		// это почему то не работает(
+		// if errors.Is(err, sql.ErrNoRows) {
+		// 	return nil, errorapp.ErrEmptyResult
+		// }
 		return nil, err
 	}
 
@@ -159,6 +146,9 @@ func (p *PosgresDB) GetOrders(userID uint16) ([]schema.Order, error) {
 	if err := rows.Err(); err != nil {
 		p.logger.Error().Err(err).Msg("error is here 346842419846")
 	}
+	if len(result) == 0 {
+		return result, errorapp.ErrEmptyResult
+	}
 
 	return result, nil
 }
@@ -168,17 +158,19 @@ func (p *PosgresDB) GetBalance(userID uint16) (schema.Balance, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Millisecond)
 	defer cancel()
 	query := `
-	SELECT SUM(bf.amount), SUM(
+	SELECT coalesce(sum(bf.amount), 0), 
+		coalesce(sum(
 			CASE
 				WHEN bf.amount < 0 THEN -bf.amount
 			END
-		)
+			), 0)
 	FROM bonus_flow bf
 	WHERE bf.user_id = $1
 	`
 	balance := schema.Balance{}
 	err := p.DB.QueryRowContext(ctx, query, userID).Scan(&balance.Current, &balance.Withdrawn)
 	if err != nil {
+		p.logger.Error().Err(err).Msg("ошибка при получении из базу баланса; err is here 6843545;")
 		return balance, err
 	}
 	return balance, nil

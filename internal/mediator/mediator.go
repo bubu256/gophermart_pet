@@ -104,6 +104,14 @@ func (m *Mediator) GetUserOrders(token string) ([]schema.Order, error) {
 	return m.db.GetOrders(userID)
 }
 
+func (m *Mediator) GetUserBalance(token string) (schema.Balance, error) {
+	userID, err := m.getUserIDfromToken(token)
+	if err != nil {
+		return schema.Balance{}, err
+	}
+	return m.db.GetBalance(userID)
+}
+
 // генерирует новый токен для userID
 func (m *Mediator) generateNewToken(userID uint16) (token string, err error) {
 

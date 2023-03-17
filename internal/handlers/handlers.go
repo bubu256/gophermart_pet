@@ -34,6 +34,7 @@ func (h *Handler) MountBaseRouter() {
 	privateRouter.Use(h.MiddlewareTokenChecker)
 	privateRouter.Post("/api/user/orders", h.PostUserOrders)
 	privateRouter.Get("/api/user/orders", h.GetUserOrders)
+	privateRouter.Get("/api/user/balance", h.GetUserBalance)
 	h.Router.Mount("/", privateRouter)
 
 	// хендлеры без мидлвара на проверку токена
@@ -190,20 +191,6 @@ func (h *Handler) PostUserOrders(w http.ResponseWriter, r *http.Request) {
 // Получение списка загруженных номеров заказов
 // Хендлер: GET /api/user/orders.
 func (h *Handler) GetUserOrders(w http.ResponseWriter, r *http.Request) {
-	// 	200 — успешная обработка запроса.						+
-	//   Формат ответа:
-	//   200 OK HTTP/1.1
-	//   Content-Type: application/json
-	//   ...
-
-	//   [
-	//       {
-	//           "number": "9278923470",
-	//           "status": "PROCESSED",
-	//           "accrual": 500,
-	//           "uploaded_at": "2020-12-10T15:15:45+03:00"
-	//       },
-
 	cookieToken, err := r.Cookie("token")
 	if err != nil {
 		h.logger.Error().Err(err).Msg("ошибка при чтении токена из кук; error is here 16813145685")
@@ -229,6 +216,29 @@ func (h *Handler) GetUserOrders(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(ordersByte)
+}
+
+// GET /api/user/balance — получение текущего баланса счёта баллов лояльности пользователя;
+func (h *Handler) GetUserBalance(w http.ResponseWriter, r *http.Request) {
+	cookieToken, err := r.Cookie("token")
+	if err != nil {
+		h.logger.Error().Err(err).Msg("ошибка при чтении токена из кук; error is here 16813145685;")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	balance, err := h.Mediator.GetUserBalance(cookieToken.Value)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("ошибка при получении баланса; err is here 64815168';")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	byteBalance, err := json.Marshal(balance)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("ошибка кодирования в json; err is here 5465135;")
+	}
+	w.Header().Set("Content-type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(byteBalance)
 }
 
 //============Handlers==================//
