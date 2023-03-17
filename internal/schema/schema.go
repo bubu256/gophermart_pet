@@ -55,8 +55,9 @@ type Balance struct {
 
 // структура для json запроса на списание средств
 type OrderSum struct {
-	Order string  `json:"order"`
-	Sum   float32 `json:"sum"`
+	Order       string      `json:"order"`
+	Sum         float32     `json:"sum"`
+	ProcessedAt TimeRFC3339 `json:"processed_at,omitempty"`
 }
 
 // структура для json ответа от сервиса аккрола

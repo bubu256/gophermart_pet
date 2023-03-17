@@ -132,6 +132,14 @@ func (m *Mediator) UserBalanceWithdraw(token string, orderSum schema.OrderSum) e
 	return m.db.SetBonusFlow(userID, orderSum.Order, -orderSum.Sum)
 }
 
+func (m *Mediator) GetUserWithdrawals(token string) ([]schema.OrderSum, error) {
+	userID, err := m.getUserIDfromToken(token)
+	if err != nil {
+		return nil, err
+	}
+	return m.db.GetBonusFlow(userID)
+}
+
 // генерирует новый токен для userID
 func (m *Mediator) generateNewToken(userID uint16) (token string, err error) {
 

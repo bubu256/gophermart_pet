@@ -13,5 +13,6 @@ type Storage interface {
 	GetBalance(userID uint16) (schema.Balance, error)
 	SetBonusFlow(userID uint16, orderNumber string, amount float32) error
 	GetUserIDfromOrders(numberOrder string) (userID uint16, err error)
+	GetBonusFlow(userID uint16) ([]schema.OrderSum, error)
 	Ping() error
 }

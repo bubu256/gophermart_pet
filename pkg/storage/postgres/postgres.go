@@ -198,6 +198,41 @@ func (p *PosgresDB) SetBonusFlow(userID uint16, orderNumber string, amount float
 	return nil
 }
 
+// возвращает список выводов пользователя
+func (p *PosgresDB) GetBonusFlow(userID uint16) ([]schema.OrderSum, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Millisecond)
+	defer cancel()
+	query := `
+	select order_number, amount * (-1), datetime
+	from bonus_flow bf 
+	where user_id = $1 and amount < 0
+	order by datetime 
+	`
+	rows, err := p.DB.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]schema.OrderSum, 0)
+	for rows.Next() {
+		orderSum := schema.OrderSum{}
+		err := rows.Scan(&orderSum.Order, &orderSum.Sum, &orderSum.ProcessedAt.Time)
+		if err != nil {
+			p.logger.Error().Err(err).Msg("err is here 165541321;")
+			continue
+		}
+		result = append(result, orderSum)
+	}
+	if err := rows.Err(); err != nil {
+		p.logger.Error().Err(err).Msg("error is here 3468423419846")
+	}
+	if len(result) == 0 {
+		return result, errorapp.ErrEmptyResult
+	}
+
+	return result, nil
+}
+
 // возвращает айди юзера добавившего заказ
 func (p *PosgresDB) GetUserIDfromOrders(numberOrder string) (uint16, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Millisecond)

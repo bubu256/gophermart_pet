@@ -36,6 +36,7 @@ func (h *Handler) MountBaseRouter() {
 	privateRouter.Get("/api/user/orders", h.GetUserOrders)
 	privateRouter.Get("/api/user/balance", h.GetUserBalance)
 	privateRouter.Post("/api/user/balance/withdraw", h.PostUserBalanceWithdraw)
+	privateRouter.Get("/api/user/withdrawals", h.GetUserWithdrawals)
 	h.Router.Mount("/", privateRouter)
 
 	// хендлеры без мидлвара на проверку токена
@@ -285,6 +286,36 @@ func (h *Handler) PostUserBalanceWithdraw(w http.ResponseWriter, r *http.Request
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+// Получение информации о выводе средств
+// Хендлер: GET /api/user/withdrawals.
+func (h *Handler) GetUserWithdrawals(w http.ResponseWriter, r *http.Request) {
+	cookieToken, err := r.Cookie("token")
+	if err != nil {
+		h.logger.Error().Err(err).Msg("ошибка при чтении токена из кук; error is here 1682113145685")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	withdrawals, err := h.Mediator.GetUserWithdrawals(cookieToken.Value)
+	if err != nil {
+		if errors.Is(err, errorapp.ErrEmptyResult) {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		h.logger.Error().Err(err).Msg("ошибка при попытке получить список выводов; err is here 64323154;")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	byteWithdrawals, err := json.Marshal(withdrawals)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("ошибка кодирования списка выводов в json; err is here 6432331154;")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(byteWithdrawals)
 }
 
 //============Handlers==================//
