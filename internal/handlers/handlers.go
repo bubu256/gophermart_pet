@@ -35,6 +35,7 @@ func (h *Handler) MountBaseRouter() {
 	privateRouter.Post("/api/user/orders", h.PostUserOrders)
 	privateRouter.Get("/api/user/orders", h.GetUserOrders)
 	privateRouter.Get("/api/user/balance", h.GetUserBalance)
+	privateRouter.Post("/api/user/balance/withdraw", h.PostUserBalanceWithdraw)
 	h.Router.Mount("/", privateRouter)
 
 	// хендлеры без мидлвара на проверку токена
@@ -239,6 +240,51 @@ func (h *Handler) GetUserBalance(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(byteBalance)
+}
+
+// Запрос на списание средств
+// Хендлер: POST /api/user/balance/withdraw
+func (h *Handler) PostUserBalanceWithdraw(w http.ResponseWriter, r *http.Request) {
+	if r.Header.Get("Content-Type") != "application/json" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("error is here 684534")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	orderSum := schema.OrderSum{}
+	err = json.Unmarshal(body, &orderSum)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	// проверка номера
+	if !mediator.ValidateOrderNumber(orderSum.Order) {
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		return
+	}
+	// берем берем токен
+	cookieToken, err := r.Cookie("token")
+	if err != nil {
+		h.logger.Error().Err(err).Msg("ошибка при чтении токена из кук; error is here 16813145685;")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	// списание
+	err = h.Mediator.UserBalanceWithdraw(cookieToken.Value, orderSum)
+	if err != nil {
+		if errors.Is(err, errorapp.ErrNotEnoughFunds) {
+			w.WriteHeader(http.StatusPaymentRequired)
+			return
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 //============Handlers==================//

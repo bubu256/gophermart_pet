@@ -11,7 +11,7 @@ type Storage interface {
 	SetOrderStatus(number string, status schema.StatusOrder, accrual float32) error
 	GetOrders(userID uint16) ([]schema.Order, error)
 	GetBalance(userID uint16) (schema.Balance, error)
-	SetBonusFlow(userID uint16, orderNumber string, amount float64) error
+	SetBonusFlow(userID uint16, orderNumber string, amount float32) error
 	GetUserIDfromOrders(numberOrder string) (userID uint16, err error)
 	Ping() error
 }

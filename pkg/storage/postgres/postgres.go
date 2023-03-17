@@ -177,7 +177,7 @@ func (p *PosgresDB) GetBalance(userID uint16) (schema.Balance, error) {
 }
 
 // движение бонусов
-func (p *PosgresDB) SetBonusFlow(userID uint16, orderNumber string, amount float64) error {
+func (p *PosgresDB) SetBonusFlow(userID uint16, orderNumber string, amount float32) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Millisecond)
 	defer cancel()
 	query := `

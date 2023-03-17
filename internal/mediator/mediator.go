@@ -112,6 +112,26 @@ func (m *Mediator) GetUserBalance(token string) (schema.Balance, error) {
 	return m.db.GetBalance(userID)
 }
 
+func (m *Mediator) UserBalanceWithdraw(token string, orderSum schema.OrderSum) error {
+	if orderSum.Sum < 0 {
+		return errors.New("сумма подлежащая списанию должна быть больше 0; err is here 312184;")
+	}
+	userID, err := m.getUserIDfromToken(token)
+	if err != nil {
+		return err
+	}
+	// проверка на достаточность средств
+	balance, err := m.db.GetBalance(userID)
+	if err != nil {
+		return err
+	}
+	if balance.Current < orderSum.Sum {
+		return errorapp.ErrNotEnoughFunds
+	}
+	// записываем в базу движение средств с минусом
+	return m.db.SetBonusFlow(userID, orderSum.Order, -orderSum.Sum)
+}
+
 // генерирует новый токен для userID
 func (m *Mediator) generateNewToken(userID uint16) (token string, err error) {
 
