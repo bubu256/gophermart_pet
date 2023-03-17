@@ -11,6 +11,9 @@ import (
 	"github.com/bubu256/gophermart_pet/internal/errorapp"
 	"github.com/bubu256/gophermart_pet/internal/schema"
 	"github.com/bubu256/gophermart_pet/pkg/storage"
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jackc/pgerrcode"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/rs/zerolog"
@@ -41,6 +44,9 @@ func New(cfg config.CfgDataBase, logger zerolog.Logger) storage.Storage {
 	if err != nil {
 		logger.Fatal().Err(err).Msg("DB not available; error is here 58545346")
 	}
+	logger.Info().Msg("Подключение с БД готово;")
+
+	pdb.migrateUp()
 	return pdb
 }
 
@@ -261,4 +267,27 @@ func (p *PosgresDB) Ping() error {
 	}
 	defer db.Close()
 	return db.PingContext(ctx)
+}
+
+// up миграции БД
+func (p *PosgresDB) migrateUp() error {
+	m, err := migrate.New(
+		"file://migrations",
+		p.URI,
+	)
+	if err != nil {
+		p.logger.Fatal().Err(err).Msg("удалось подключиться к БД для выполнения миграции; err is here 9879516;")
+		return err
+	}
+	defer m.Close()
+	err = m.Up()
+	if errors.Is(err, migrate.ErrNoChange) {
+		p.logger.Info().Msg("Миграция БД не требуется;")
+		return nil
+	}
+	if err != nil {
+		p.logger.Error().Err(err).Msg("ошибка при выполнении миграции; err is here 0321518")
+	}
+	p.logger.Info().Msgf("Миграция применена к БД; %v", m)
+	return nil
 }
