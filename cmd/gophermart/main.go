@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/bubu256/gophermart_pet/config"
+	"github.com/bubu256/gophermart_pet/internal/accrual/worker"
 	"github.com/bubu256/gophermart_pet/internal/handlers"
 	"github.com/bubu256/gophermart_pet/internal/mediator"
 	"github.com/bubu256/gophermart_pet/pkg/logger"
@@ -20,11 +21,11 @@ func main() {
 	cfg := config.New(log)
 	cfg.LoadFromFlag() // загрузка параметров из флагов запуска или значения по умолчанию
 	cfg.LoadFromEnv()  // загрузка параметров из переменных окружения
-
 	db := postgres.New(cfg.DataBase, log)
 	mediator := mediator.New(db, cfg.Mediator, log)
+	worker.Run(db, log, cfg.Server)
 	handler := handlers.New(mediator, cfg.Server, log)
-	log.Info().Msgf("Сервер запущен: %s", cfg.Server.RunAddress)
+	log.Info().Msgf("Запуск сервера: %s", cfg.Server.RunAddress)
 	err := http.ListenAndServe(cfg.Server.RunAddress, handler.Router)
 	if err != nil {
 		log.Fatal().Err(err)

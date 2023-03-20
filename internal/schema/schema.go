@@ -18,6 +18,16 @@ const (
 	StatusOrderProcessed  StatusOrder = "PROCESSED"
 )
 
+// возможные статусы ответа от аккрол сервиса
+type AccrualStatus string
+
+const (
+	AccrualStatusRegistered AccrualStatus = "REGISTERED"
+	AccrualStatusInvalid    AccrualStatus = "INVALID"
+	AccrualStatusProcessing AccrualStatus = "PROCESSING"
+	AccrualStatusProcessed  AccrualStatus = "PROCESSED"
+)
+
 // тип для представления кодирования времени в json в формат RFC3339
 type TimeRFC3339 struct {
 	time.Time
@@ -61,10 +71,10 @@ type OrderSum struct {
 }
 
 // структура для json ответа от сервиса аккрола
-type AnswerAccrualStatus struct {
-	Order   string `json:"order"`
-	Status  string `json:"status"` // REGISTERED, INVALID, PROCESSING, PROCESSED
-	Accrual int    `json:"accrual"`
+type AnswerAccrualService struct {
+	Order   string        `json:"order"`
+	Status  AccrualStatus `json:"status"` // REGISTERED, INVALID, PROCESSING, PROCESSED
+	Accrual int           `json:"accrual,omitempty"`
 }
 
 type LoginPassword struct {

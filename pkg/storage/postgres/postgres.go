@@ -291,3 +291,45 @@ func (p *PosgresDB) migrateUp() error {
 	p.logger.Info().Msgf("Миграция применена к БД; %v", m)
 	return nil
 }
+
+// возвращает номера и статусы заказов ожидающих расчета начисления (только заказы в статусе NEW и PROCESSING)
+func (p *PosgresDB) GetWaitingOrders() ([]schema.Order, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Millisecond)
+	defer cancel()
+	query := `
+	SELECT num, stat FROM (
+		SELECT distinct on (os.order_id) 
+			o.number num, 
+			s.name stat, 
+			os.accrual acc, 
+			o.datetime upload
+		FROM orders o JOIN order_status os ON o.order_id = os.order_id
+			JOIN status s ON s.status_id = os.status_id
+		ORDER BY os.order_id, os.datetime desc
+		) q
+	WHERE stat IN ('PROCESSING', 'NEW')
+	`
+	rows, err := p.DB.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]schema.Order, 0)
+	for rows.Next() {
+		order := schema.Order{}
+		err := rows.Scan(&order.Number, &order.Status)
+		if err != nil {
+			p.logger.Error().Err(err).Msg("err is here 6516541321;")
+			continue
+		}
+		result = append(result, order)
+	}
+	if err := rows.Err(); err != nil {
+		p.logger.Error().Err(err).Msg("error is here 346546842419846")
+	}
+	if len(result) == 0 {
+		return result, errorapp.ErrEmptyResult
+	}
+
+	return result, nil
+}
