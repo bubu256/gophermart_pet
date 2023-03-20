@@ -193,7 +193,7 @@ func (h *Handler) PostUserOrders(w http.ResponseWriter, r *http.Request) {
 // Получение списка загруженных номеров заказов
 // Хендлер: GET /api/user/orders
 func (h *Handler) GetUserOrders(w http.ResponseWriter, r *http.Request) {
-	h.logger.Debug().Msg("i am here. 1")
+	// h.logger.Debug().Msg("i am here. 1")
 	cookieToken, err := r.Cookie("token")
 	if err != nil {
 		h.logger.Error().Err(err).Msg("ошибка при чтении токена из кук; error is here 16813145685")
@@ -201,7 +201,7 @@ func (h *Handler) GetUserOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.logger.Debug().Msg("i am here. 2")
+	// h.logger.Debug().Msg("i am here. 2")
 	orders, err := h.Mediator.GetUserOrders(cookieToken.Value)
 	if err != nil {
 		if errors.Is(err, errorapp.ErrEmptyResult) {
@@ -213,7 +213,7 @@ func (h *Handler) GetUserOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.logger.Debug().Msg("i am here. 3")
+	// h.logger.Debug().Msg("i am here. 3")
 	ordersByte, err := json.Marshal(orders)
 	if err != nil {
 		h.logger.Error().Err(err).Msg("ошибка кодирования списка заказов в json; err is here 64331154;")
@@ -221,7 +221,7 @@ func (h *Handler) GetUserOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.logger.Debug().Msg("i am here. 4")
+	// h.logger.Debug().Msg("i am here. 4")
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(ordersByte)

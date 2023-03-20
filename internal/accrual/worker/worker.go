@@ -32,7 +32,7 @@ type AccrualWorker struct {
 func Run(db storage.Storage, logger zerolog.Logger, cfg config.CfgServer) {
 
 	worker := AccrualWorker{db: db, logger: logger, serverAddress: cfg.RunAddress}
-	ticker := time.NewTicker(30 * time.Second)
+	ticker := time.NewTicker(1 * time.Second)
 	// done := make(chan struct{})
 	go func() {
 		for range ticker.C {
