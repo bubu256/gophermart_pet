@@ -102,12 +102,14 @@ func (a *AccrualWorker) getAccrual(order string) (schema.AnswerAccrualService, e
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 	answerAccrual := schema.AnswerAccrualService{}
-	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("http://%s/api/orders/%s", a.serverAddress, order), nil)
+	request, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("http://%s/api/orders/%s", a.serverAddress, order), nil)
+	request.Header.Set("Content-Type", "application/json; charset=UTF-8")
+	request.Header.Add("Accept", "application/json")
 	if err != nil {
 		// a.logger.Error().Err(err).Msg("ошибка при создании запроса для сервиса аккрол; err is here 2235498;")
 		return answerAccrual, err
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(request)
 	if err != nil {
 		return answerAccrual, err
 	}
