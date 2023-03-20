@@ -155,7 +155,6 @@ func (p *PosgresDB) GetOrders(userID uint16) ([]schema.Order, error) {
 	if len(result) == 0 {
 		return result, errorapp.ErrEmptyResult
 	}
-
 	return result, nil
 }
 

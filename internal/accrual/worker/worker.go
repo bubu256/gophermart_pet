@@ -35,17 +35,11 @@ func Run(db storage.Storage, logger zerolog.Logger, cfg config.CfgServer) {
 	ticker := time.NewTicker(30 * time.Second)
 	// done := make(chan struct{})
 	go func() {
-		for {
-			select {
-			case <-ticker.C:
-				worker.UpdateStatuses()
-				// case <-done:
-				// 	return
-			}
+		for range ticker.C {
+			worker.UpdateStatuses()
 		}
 	}()
 	logger.Info().Msg("Воркер запущен")
-	return
 }
 
 // получает из базы список заказов ожидающих расчет начислений
