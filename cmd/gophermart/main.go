@@ -23,7 +23,7 @@ func main() {
 	cfg.LoadFromEnv()  // загрузка параметров из переменных окружения
 	db := postgres.New(cfg.DataBase, log)
 	mediator := mediator.New(db, cfg.Mediator, log)
-	worker.Run(db, log, cfg.Server)
+	worker.Run(db, log, cfg.Worker)
 	handler := handlers.New(mediator, cfg.Server, log)
 	log.Info().Msgf("Запуск сервера: %s", cfg.Server.RunAddress)
 	err := http.ListenAndServe(cfg.Server.RunAddress, handler.Router)

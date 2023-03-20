@@ -19,6 +19,7 @@ type Configuration struct {
 	DataBase CfgDataBase
 	Server   CfgServer
 	Mediator CfgMediator
+	Worker   CfgAccrualWorker
 	logger   zerolog.Logger
 }
 
@@ -32,6 +33,10 @@ type CfgDataBase struct {
 
 type CfgServer struct {
 	RunAddress string `env:"RUN_ADDRESS"`
+}
+
+type CfgAccrualWorker struct {
+	AccrualSystemAddress string `env:"ACCRUAL_SYSTEM_ADDRESS"`
 }
 
 // Заполняет конфиг из переменных окружения
@@ -55,5 +60,6 @@ func (c *Configuration) LoadFromFlag() {
 	flag.StringVar(&(c.Server.RunAddress), "a", "localhost:8080", "Address to start the server (RUN_ADDRESS environment)")
 	flag.StringVar(&(c.DataBase.DataBaseURI), "d", "", "connecting string to DB (DATABASE_URI environment)")
 	flag.StringVar(&(c.Mediator.SecretKey), "k", "", "Secret key for token generating (KEY environment)")
+	flag.StringVar(&(c.Worker.AccrualSystemAddress), "r", "localhost:8080", "Address of the accrual system (ACCRUAL_SYSTEM_ADDRESS environment)")
 	flag.Parse()
 }

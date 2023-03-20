@@ -29,9 +29,9 @@ type AccrualWorker struct {
 }
 
 // запускает воркер который в горутине регулярно обновляет статусы заказов
-func Run(db storage.Storage, logger zerolog.Logger, cfg config.CfgServer) {
+func Run(db storage.Storage, logger zerolog.Logger, cfg config.CfgAccrualWorker) {
 
-	worker := AccrualWorker{db: db, logger: logger, serverAddress: cfg.RunAddress}
+	worker := AccrualWorker{db: db, logger: logger, serverAddress: cfg.AccrualSystemAddress}
 	ticker := time.NewTicker(1 * time.Second)
 	// done := make(chan struct{})
 	go func() {
