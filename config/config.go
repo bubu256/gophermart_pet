@@ -53,6 +53,16 @@ func (c *Configuration) LoadFromEnv() {
 	if err != nil {
 		c.logger.Warn().Msgf("не удалось загрузить конфигурацию сервера из переменных окружения; %v", err)
 	}
+
+	err = env.Parse(&(c.Mediator))
+	if err != nil {
+		c.logger.Warn().Msgf("не удалось загрузить конфигурацию сервера из переменных окружения; %v", err)
+	}
+
+	err = env.Parse(&(c.Worker))
+	if err != nil {
+		c.logger.Warn().Msgf("не удалось загрузить конфигурацию сервера из переменных окружения; %v", err)
+	}
 }
 
 // функция парсит флаги запуска
