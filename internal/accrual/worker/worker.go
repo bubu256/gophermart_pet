@@ -109,7 +109,7 @@ func (a *AccrualWorker) getAccrual(order string) (schema.AnswerAccrualService, e
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return answerAccrual, errors.New("ошибка при отправке запроса на сервис accrual; err is here 8123164112;")
+		return answerAccrual, err
 	}
 	// проверка статус кода
 	switch resp.StatusCode {
