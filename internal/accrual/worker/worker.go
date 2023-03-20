@@ -109,7 +109,9 @@ func (a *AccrualWorker) getAccrual(order string) (schema.AnswerAccrualService, e
 		// a.logger.Error().Err(err).Msg("ошибка при создании запроса для сервиса аккрол; err is here 2235498;")
 		return answerAccrual, err
 	}
-	resp, err := http.DefaultClient.Do(request)
+	// resp, err := http.DefaultClient.Do(request)
+	client := &http.Client{}
+	resp, err := client.Do(request)
 	if err != nil {
 		return answerAccrual, err
 	}
