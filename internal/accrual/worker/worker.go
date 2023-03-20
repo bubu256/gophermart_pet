@@ -123,11 +123,11 @@ func (a *AccrualWorker) getAccrual(order string) (schema.AnswerAccrualService, e
 	if resp.Header.Get("Content-Type") != "application/json" {
 		a.logger.Warn().Msg("неожиданный тип ответа от сервиса аккрол; i am here 22345354;")
 	}
-	a.logger.Debug().Str("Content-Type", resp.Header.Get("Content-Type"))
+	a.logger.Debug().Str("Content-Type", resp.Header.Get("Content-Type")).Msg("")
 	// читаем ответ и возвращаем результат
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
-	a.logger.Debug().Str("body", string(body))
+	a.logger.Debug().Str("body", string(body)).Msg("")
 	if err != nil {
 		return answerAccrual, err
 	}
