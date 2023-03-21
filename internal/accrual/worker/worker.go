@@ -77,7 +77,7 @@ func (a *AccrualWorker) UpdateStatuses() {
 			a.logger.Info().Msgf("обновлен статус заказа %s на %s;", answerAccrual.Order, schema.StatusOrderInvalid)
 
 		case schema.AccrualStatusProcessed:
-			err := a.db.SetOrderStatus(answerAccrual.Order, schema.StatusOrderProcessed, 0)
+			err := a.db.SetOrderStatus(answerAccrual.Order, schema.StatusOrderProcessed, answerAccrual.Accrual)
 			if err != nil {
 				a.logger.Error().Err(err).Msgf("ошибка при попытке обновить статус заказа %s; err is here 2265213151", answerAccrual.Order)
 				continue
