@@ -32,7 +32,7 @@ type AccrualWorker struct {
 func Run(db storage.Storage, logger zerolog.Logger, cfg config.CfgAccrualWorker) {
 
 	worker := AccrualWorker{db: db, logger: logger, serverAddress: cfg.AccrualSystemAddress}
-	ticker := time.NewTicker(1 * time.Second)
+	ticker := time.NewTicker(5 * time.Second)
 	// done := make(chan struct{})
 	go func() {
 		for range ticker.C {
@@ -48,7 +48,6 @@ func Run(db storage.Storage, logger zerolog.Logger, cfg config.CfgAccrualWorker)
 //		waitingOrders :=
 //	}
 func (a *AccrualWorker) UpdateStatuses() {
-	a.logger.Debug().Msg("запуск UpdateStatuses")
 	//получаем все заказы нуждающиеся в обновлении статуса
 	waitingOrders, err := a.db.GetWaitingOrders()
 	a.logger.Debug().Msgf("заказы ожидающие обновления статуса: %v", waitingOrders)
@@ -57,7 +56,6 @@ func (a *AccrualWorker) UpdateStatuses() {
 			a.logger.Debug().Msg("нет заказов для обновления статусов;")
 			return
 		}
-		a.logger.Error().Err(err).Msg("ошибка получения заказов в UpdateStatuses; err is here 226456481")
 		return
 	}
 	// проверяем аккрол статус заказов и если требуется обновляем данные в БД
@@ -77,6 +75,7 @@ func (a *AccrualWorker) UpdateStatuses() {
 			a.logger.Info().Msgf("обновлен статус заказа %s на %s;", answerAccrual.Order, schema.StatusOrderInvalid)
 
 		case schema.AccrualStatusProcessed:
+			// обновление статуса и зачисление бонусов
 			err := a.db.SetOrderStatus(answerAccrual.Order, schema.StatusOrderProcessed, answerAccrual.Accrual)
 			if err != nil {
 				a.logger.Error().Err(err).Msgf("ошибка при попытке обновить статус заказа %s; err is here 2265213151", answerAccrual.Order)
@@ -105,9 +104,6 @@ func (a *AccrualWorker) getAccrual(order string) (schema.AnswerAccrualService, e
 	request, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/api/orders/%s", a.serverAddress, order), nil)
 	request.Header.Set("Content-Type", "application/json; charset=UTF-8")
 	request.Header.Add("Accept", "application/json")
-	a.logger.Debug().Str("get", request.URL.RequestURI()).Msg("")
-	a.logger.Debug().Str("get", request.URL.String()).Msg("")
-	a.logger.Debug().Msg(fmt.Sprintf("%s/api/orders/%s", a.serverAddress, order))
 	if err != nil {
 		// a.logger.Error().Err(err).Msg("ошибка при создании запроса для сервиса аккрол; err is here 2235498;")
 		return answerAccrual, err
@@ -130,11 +126,9 @@ func (a *AccrualWorker) getAccrual(order string) (schema.AnswerAccrualService, e
 	if resp.Header.Get("Content-Type") != "application/json" {
 		a.logger.Warn().Msg("неожиданный тип ответа от сервиса аккрол; i am here 22345354;")
 	}
-	a.logger.Debug().Str("Content-Type", resp.Header.Get("Content-Type")).Msg("")
 	// читаем ответ и возвращаем результат
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
-	a.logger.Debug().Str("body", string(body)).Msg("")
 	if err != nil {
 		return answerAccrual, err
 	}

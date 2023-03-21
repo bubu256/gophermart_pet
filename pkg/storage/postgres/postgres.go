@@ -95,6 +95,7 @@ func (p *PosgresDB) SetOrder(userID uint16, number string) error {
 }
 
 // устанавливает статус расчета заказа
+// статус PROCESSED начиляет бонусы
 func (p *PosgresDB) SetOrderStatus(number string, status schema.StatusOrder, accrual float32) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Millisecond)
 	defer cancel()
@@ -109,6 +110,26 @@ func (p *PosgresDB) SetOrderStatus(number string, status schema.StatusOrder, acc
 			return errorapp.ErrDuplicate
 		}
 		return err
+	}
+	// если статус PROCESSED
+	// зачисляем бонусы на счет
+	if status == schema.StatusOrderProcessed {
+		query2 := `
+			INSERT INTO bonus_flow(user_id, order_number, amount)
+			SELECT user_id, $1, $2
+			FROM orders WHERE number = $1
+			`
+		insertResult, err := p.DB.ExecContext(ctx, query2, number, accrual)
+		if err != nil {
+			return err
+		}
+		insertCount, err := insertResult.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if insertCount == 0 {
+			return errorapp.ErrEmptyInsert
+		}
 	}
 	return nil
 }
