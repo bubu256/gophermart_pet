@@ -74,7 +74,7 @@ type OrderSum struct {
 type AnswerAccrualService struct {
 	Order   string        `json:"order"`
 	Status  AccrualStatus `json:"status"` // REGISTERED, INVALID, PROCESSING, PROCESSED
-	Accrual int           `json:"accrual,omitempty"`
+	Accrual float32       `json:"accrual,omitempty"`
 }
 
 type LoginPassword struct {
